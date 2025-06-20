@@ -1,0 +1,10 @@
+- Update packages: sudo apt update && sudo apt upgrade -y
+- Install linux headers: sudo apt install linux-headers-$(uname -r)
+- Install build tools (gcc, make, ....): sudo apt install -y build-essential
+- Reboot to load new kernel: sudo reboot 
+
+
+- To watch kernel logs: sudo dmesg -W
+- To insert kernel module: sudo insmod <filename>.ko
+- To remove kernel module: sudo rmmod <filename>.ko
+
