@@ -1,0 +1,14 @@
+- Update packages: sudo apt update && sudo apt upgrade -y
+- Install linux headers: sudo apt install linux-headers-$(uname -r)
+- Install build tools (gcc, make, ....): sudo apt install -y build-essential
+- Reboot to load new kernel: sudo reboot 
+
+
+- To watch kernel logs: sudo dmesg -WT
+- To insert kernel module: sudo insmod <filename>.ko
+- To remove kernel module: sudo rmmod <filename>.ko
+
+- To show module metadata: modinfo <filename>.ko
+- To check kernel modules loaded on system: lsmod
+
+- checkpatch.pl path: /usr/src/linux-source-5.15.0/scripts/checkpatch.pl -f <filename>.c
