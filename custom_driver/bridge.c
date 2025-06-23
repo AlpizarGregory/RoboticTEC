@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #define CUSTOM_DEVICE "/dev/custom_driver"
 #define ARDUINO_DEVICE "/dev/ttyACM0"
@@ -51,46 +52,89 @@ int setup_serial(const char *device)
     return fd;
 }
 
+int write_to_driver(bool isOn)
+{
+    ssize_t written;
+    int fd = open(CUSTOM_DEVICE, O_WRONLY);
+
+    if (fd < 0) {
+        perror("Failed to open device");
+
+        return EXIT_FAILURE;
+    }
+
+    if (isOn) {
+        written = write(fd, "LED_OFF", 7);
+    } else {
+        written = write(fd, "LED_ON", 6);
+    }
+
+    if (written < 0) {
+        perror("Failed to write to device\n");
+        close(fd);
+
+        return EXIT_FAILURE;
+    }
+
+    printf("Wrote %ld bytes to %s\n", written, CUSTOM_DEVICE);
+    close(fd);
+
+    return EXIT_SUCCESS;
+}
+
+int activate_bridge()
+{
+    char buffer[256];
+    int arduino_fd = setup_serial(ARDUINO_DEVICE);
+    if(arduino_fd < 0) {
+        perror("Failed creating bridge\n");
+        return arduino_fd;
+    }
+
+    int driver_fd = open(CUSTOM_DEVICE, O_RDONLY);
+    if (driver_fd < 0) {
+        perror("Failed to open /dev/custom_driver\n");
+        return driver_fd;
+    }
+
+    ssize_t n = read(driver_fd, buffer, sizeof(buffer) - 1);
+
+    if (n > 0) {
+        buffer[n] = "\0";
+        printf("DRIVER -> ARDUINO: %s\n", buffer);
+
+        write(arduino_fd, buffer, n);
+        write(arduino_fd, "\n", 1);
+    } else if (n < 0) {
+        perror("Error reading from driver");
+    }
+
+    close(driver_fd);
+    close(arduino_fd);
+
+    return 0;
+}
+
 int main()
 {
-    int arduino_fd = setup_serial(ARDUINO_DEVICE);
-
-    printf("Bridge running. Arduino waiting for messages from Custom Kernel Module\n");
-
-    char buffer[256];
     int counter = 0;
+    bool isOn = true;
 
-    while (1) {
-        int driver_fd = open(CUSTOM_DEVICE, O_RDONLY);
-        if (driver_fd < 0) {
-            perror("Failed to open /dev/custom_driver\n");
-            return EXIT_FAILURE;
+    while (counter < 6) {
+        int write_result = write_to_driver(isOn);
+        if (write_result < 0) {
+            return write_result;
         }
-        ssize_t n = read(driver_fd, buffer, sizeof(buffer) - 1);
+        isOn = !isOn;
 
-        if (n > 0) {
-            printf("c = %c (%d)\n", buffer[0], buffer[0]);
-            if (buffer[0] == 10) {
-                printf("Working...\n");
-            }
-            buffer[n] = "\0";
-            printf("DRIVER -> ARDUINO: %s\n", buffer);
-
-            write(arduino_fd, buffer, n);
-            write(arduino_fd, "\n", 1);
-            counter++;
-        } else if (n < 0) {
-            perror("Error reading from driver");
-            break;
+        int bridge_result = activate_bridge();
+        if (bridge_result < 0) {
+            return bridge_result;
         }
 
-        if (counter > 4) {
-            break;
-        }
-        close(driver_fd);
-        sleep(2);
+        counter++;
+        sleep(10);
     }
-    close(arduino_fd);
 
     return 0;
 }
