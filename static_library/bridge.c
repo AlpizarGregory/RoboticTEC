@@ -57,20 +57,24 @@ static int setup_serial(const char *device)
 
 int open_arduino_connection()
 {
-    driver_fd = open(CUSTOM_DEVICE, O_RDWR);
     if (driver_fd < 0) {
-        perror("Failed to open device\n");
+        driver_fd = open(CUSTOM_DEVICE, O_RDWR);
+        if (driver_fd < 0) {
+            perror("Failed to open device\n");
 
-        return driver_fd;
+            return driver_fd;
+        }
     }
 
-    arduino_fd = setup_serial(ARDUINO_DEVICE);
     if (arduino_fd < 0) {
-        perror("Failed setting serial up\n");
+        arduino_fd = setup_serial(ARDUINO_DEVICE);
+        if (arduino_fd < 0) {
+            perror("Failed setting serial up\n");
 
-        return arduino_fd;
+            return arduino_fd;
+        }
     }
-
+    
     return 0;
 }
 
@@ -131,4 +135,24 @@ int read_from_arduino(char *buffer, size_t size)
     }
 
     return -1;
+}
+
+int arduino_move_right() {
+    return write_to_arduino("MR");
+}
+
+int arduino_move_left() {
+    return write_to_arduino("ML");
+}
+
+int arduino_move_up() {
+    return write_to_arduino("MU");
+}
+
+int arduino_move_down() {
+    return write_to_arduino("MD");
+}
+
+int arduino_press_key() {
+    return write_to_arduino("PK");
 }
