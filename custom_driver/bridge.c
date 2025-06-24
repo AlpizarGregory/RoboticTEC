@@ -52,7 +52,7 @@ int setup_serial(const char *device)
     return fd;
 }
 
-int write_to_driver(bool isOn)
+int write_to_driver(char message[256])
 {
     ssize_t written;
     int fd = open(CUSTOM_DEVICE, O_WRONLY);
@@ -63,11 +63,7 @@ int write_to_driver(bool isOn)
         return EXIT_FAILURE;
     }
 
-    if (isOn) {
-        written = write(fd, "LED_OFF", 7);
-    } else {
-        written = write(fd, "LED_ON", 6);
-    }
+    written = write(fd, message, strlen(message));
 
     if (written < 0) {
         perror("Failed to write to device\n");
@@ -76,7 +72,7 @@ int write_to_driver(bool isOn)
         return EXIT_FAILURE;
     }
 
-    printf("Wrote %ld bytes to %s\n", written, CUSTOM_DEVICE);
+    printf("Wrote '%s' (%ld bytes) to %s\n", message, written, CUSTOM_DEVICE);
     close(fd);
 
     return EXIT_SUCCESS;
@@ -121,7 +117,12 @@ int main()
     bool isOn = true;
 
     while (counter < 6) {
-        int write_result = write_to_driver(isOn);
+        int write_result;
+        if (isOn) {
+            write_result = write_to_driver("LED_OFF");
+        } else {
+            write_result = write_to_driver("LED_ON");
+        }
         if (write_result < 0) {
             return write_result;
         }
