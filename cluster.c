@@ -6,7 +6,7 @@
 #include "static_library/bridge.h"
 
 #define MASTER 0
-#define CHUNK_SIZE 800000  // 64 KB per process
+#define CHUNK_SIZE 800000  // 800 KB per process
 #define MAX_WORDS 10000
 #define MAX_WORD_LEN 32
 #define TOP_N 3
