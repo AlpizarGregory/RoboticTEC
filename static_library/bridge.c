@@ -68,7 +68,7 @@ int read_from_arduino(char *buffer, size_t size)
 
     size_t n = read(driver_fd, buffer, size - 1);
     if (n >= 0) {
-        buffer[n] = "\0";
+        buffer[n] = '\0';
         int close = close_arduino_connection();
         if (close < 0)
             return close;
