@@ -88,30 +88,20 @@ int write_top_word(WordCount *wc) {
     int close_connection;
     int result;
 
-    open_connection = open_arduino_connection();
-
-    if (open_connection < 0) {
-        return open_connection;
-    }
-
     char buffer[32];
     memset(buffer, 0, sizeof(buffer));
     snprintf(buffer, sizeof(buffer), "%s %d", wc[0].word, wc[0].count);
 
     // This line writes the top word to the Arduino
-    // result = write_to_arduino(buffer);
+    result = write_to_arduino("LED_OFF");
+    sleep(5);
+    result = write_to_arduino("LED_ON");
 
     // What should actually be sent to the Arduino, hand moves
-    result = arduino_move_down();
+    // result = arduino_move_down();
 
     if (result < 0) {
         return result;
-    }
-
-    close_connection = close_arduino_connection();
-
-    if (close_connection < 0) {
-        return close_connection;
     }
 
     return 0;
