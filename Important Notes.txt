@@ -12,3 +12,5 @@
 - To check kernel modules loaded on system: lsmod
 
 - checkpatch.pl path: /usr/src/linux-source-5.15.0/scripts/checkpatch.pl -f <filename>.c
+
+- Don Quixote: 428 924 words
