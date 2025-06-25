@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
 #include <ctype.h>
 #include "static_library/bridge.h"
 
@@ -11,6 +13,7 @@
 #define MAX_WORD_LEN 32
 #define TOP_N 3
 #define TAG 0
+#define PORT 12345
 
 typedef struct {
     char word[MAX_WORD_LEN];
@@ -51,54 +54,21 @@ int compare_counts(const void *a, const void *b) {
 
 void print_top_words(WordCount *wc, int count, int top_n) {
     qsort(wc, count, sizeof(WordCount), compare_counts);
-    printf("Top %d words:\n", top_n);
+    printf("\nTop %d words:\n", top_n);
     for (int i = 0; i < top_n && i < count; i++) {
         printf("  %s: %d\n", wc[i].word, wc[i].count);
     }
 }
 
-char* read_file(const char *filename, long *filesize_out) {
-    FILE *fp = fopen(filename, "r");
-    if (!fp) {
-        perror("Failed to open file");
-        return NULL;
-    }
-
-    fseek(fp, 0L, SEEK_END);
-    long size = ftell(fp);
-    rewind(fp);
-
-    char *buffer = malloc(size + 1);
-    if (!buffer) {
-        perror("Failed to allocate memory");
-        fclose(fp);
-        return NULL;
-    }
-
-    fread(buffer, 1, size, fp);
-    buffer[size] = '\0';
-    fclose(fp);
-
-    *filesize_out = size;
-    return buffer;
-}
-
 int write_top_word(WordCount *wc) {
-    int open_connection;
-    int close_connection;
     int result;
 
-    char buffer[32];
+    char buffer[64];
     memset(buffer, 0, sizeof(buffer));
-    snprintf(buffer, sizeof(buffer), "%s %d", wc[0].word, wc[0].count);
+    snprintf(buffer, sizeof(buffer), "%s%d", wc[0].word, wc[0].count);
 
-    // This line writes the top word to the Arduino
-    result = write_to_arduino("LED_OFF");
-    sleep(5);
-    result = write_to_arduino("LED_ON");
-
-    // What should actually be sent to the Arduino, hand moves
-    // result = arduino_move_down();
+    // Writes the top word to the Arduino
+    result = write_to_arduino(buffer);
 
     if (result < 0) {
         return result;
@@ -114,29 +84,53 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (argc < 2) {
-        if (rank == MASTER) fprintf(stderr, "Usage: %s file.txt\n", argv[0]);
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-
     char *full_text = NULL;
-    long filesize = 0;
+    long text_size = 0;
     char *chunk = malloc(CHUNK_SIZE);
     memset(chunk, 0, CHUNK_SIZE);
 
     WordCount merged[MAX_WORDS] = {0};
 
     if (rank == MASTER) {
-        full_text = read_file(argv[1], &filesize);
-        if (!full_text) {
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
+        // Server socket
+        int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+        struct sockaddr_in addr = {
+            .sin_family = AF_INET,
+            .sin_port = htons(PORT),
+            .sin_addr.s_addr = INADDR_ANY
+        };
+        bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
+        listen(server_fd, 1);
 
-        long part_size = filesize / size;
+        printf("[Server] - Waiting for client...\n");
+
+        int client_fd = accept(server_fd, NULL, NULL);
+
+        recv(client_fd, &text_size, sizeof(text_size), 0);
+        full_text = malloc(text_size + 1);
+
+        int total_received = 0;
+
+        while (total_received < text_size) {
+            int received = recv(client_fd, full_text + total_received, text_size - total_received, 0);
+            if (received <= 0) {
+                perror("recv failed or connection closed");
+                exit(EXIT_FAILURE);
+            }
+
+            total_received += received;
+        }
+        full_text[text_size] = '\0';
+
+        printf("[Server] - Text received, counting words...\n");
+        close(client_fd);
+        close(server_fd);
+
+        long part_size = text_size / size;
 
         for (int i = 1; i < size; i++) {
             long offset = i * part_size;
-            long len = (i == size - 1) ? (filesize - offset) : part_size;
+            long len = (i == size - 1) ? (text_size - offset) : part_size;
             MPI_Send(full_text + offset, len, MPI_CHAR, i, TAG, MPI_COMM_WORLD);
         }
 

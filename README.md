@@ -21,8 +21,14 @@ $ sudo apt install mpich
 $ make
 ```
 
-- Execute the program
+- Execute the server
 
 ```
-$ make run
+$ make serv
+```
+
+- Open another terminal and execute the client:
+
+```
+$ make cli
 ```

@@ -1,11 +1,14 @@
 # Variables
-CC = mpicc
+GCC = gcc
+MPICC = mpicc
 AR = ar
 RUN = mpirun
 
-MAIN_C_FILE = cluster.c
-MAIN_O_FILE = cluster.o
-MAIN_EXEC = cluster
+SERVER_C_FILE = server.c
+SERVER_O_FILE = server.o
+SERVER_EXEC = server
+CLIENT_C_FILE = client.c
+CLIENT_EXEC = client
 LIB_C_FILE = static_library/bridge.c
 LIB_O_FILE = static_library/bridge.o
 STATIC_LIB = static_library/lib_bridge.a
@@ -13,15 +16,19 @@ TXT_FILE = don_quixote.txt
 
 # Compile code with static library
 make:
-	$(CC) -c $(LIB_C_FILE) -o $(LIB_O_FILE)
+	$(GCC) -c $(LIB_C_FILE) -o $(LIB_O_FILE)
 	$(AR) rcs $(STATIC_LIB) $(LIB_O_FILE)
-	$(CC) -c $(MAIN_C_FILE) -o $(MAIN_O_FILE)
-	$(CC) -o $(MAIN_EXEC) $(MAIN_O_FILE) -L. $(STATIC_LIB)
+	$(MPICC) -c $(SERVER_C_FILE) -o $(SERVER_O_FILE)
+	$(MPICC) -o $(SERVER_EXEC) $(SERVER_O_FILE) -L. $(STATIC_LIB)
+	$(GCC) $(CLIENT_C_FILE) -o $(CLIENT_EXEC)
 
-# Run executable
-run:
-	sudo $(RUN) --allow-run-as-root -np 4 ./$(MAIN_EXEC) $(TXT_FILE)
+# Run server
+serv:
+	sudo $(RUN) --allow-run-as-root -np 4 ./$(SERVER_EXEC) $(TXT_FILE)
+
+cli:
+	sudo ./$(CLIENT_EXEC)
 
 # Clean target to remove generated files
 clean:
-	rm -f $(LIB_O_FILE) $(STATIC_LIB) $(MAIN_O_FILE) $(MAIN_EXEC)
+	rm -f $(LIB_O_FILE) $(STATIC_LIB) $(SERVER_O_FILE) $(SERVER_EXEC) $(CLIENT_EXEC)
